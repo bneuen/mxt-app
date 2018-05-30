@@ -103,6 +103,7 @@ int mxt_calculate_crc(struct libmaxtouch_ctx *ctx, uint32_t *crc_result,
 int mxt_read_info_block(struct mxt_device *mxt)
 {
   int ret;
+  size_t crc_area_size;
 
   /* Read the ID Information from the chip */
   uint8_t *info_blk = (uint8_t *)calloc(1, sizeof(struct mxt_id_info));
@@ -111,32 +112,37 @@ int mxt_read_info_block(struct mxt_device *mxt)
     return MXT_ERROR_NO_MEM;
   }
 
-  ret = mxt_read_register(mxt, info_blk, 0, sizeof(struct mxt_id_info));
-  if (ret) {
-    mxt_err(mxt->ctx, "Failed to read ID information");
-    return ret;
-  }
+  if (mxt->conn->type == E_SIMULATE) {
+    mxt_info(mxt->ctx, "Simulation:  Skip reading info block");
+    crc_area_size = sizeof(struct mxt_id_info);
+  } else {
+    ret = mxt_read_register(mxt, info_blk, 0, sizeof(struct mxt_id_info));
+    if (ret) {
+      mxt_err(mxt->ctx, "Failed to read ID information");
+      return ret;
+    }
 
-  /* Determine the number of bytes for checksum calculation */
-  int num_objects = ((struct mxt_id_info*) info_blk)->num_objects;
+    /* Determine the number of bytes for checksum calculation */
+    int num_objects = ((struct mxt_id_info*) info_blk)->num_objects;
 
-  size_t crc_area_size = sizeof(struct mxt_id_info)
-                         + num_objects * sizeof(struct mxt_object);
+    crc_area_size = sizeof(struct mxt_id_info)
+                    + num_objects * sizeof(struct mxt_object);
 
-  /* Allocate space to read Information Block AND Checksum from the chip */
-  size_t info_block_size = crc_area_size + sizeof(struct mxt_raw_crc);
+    /* Allocate space to read Information Block AND Checksum from the chip */
+    size_t info_block_size = crc_area_size + sizeof(struct mxt_raw_crc);
 
-  info_blk = (uint8_t *)realloc(info_blk, info_block_size);
-  if (info_blk == NULL) {
-    mxt_err(mxt->ctx, "Memory allocation failure");
-    return MXT_ERROR_NO_MEM;
-  }
+    info_blk = (uint8_t *)realloc(info_blk, info_block_size);
+    if (info_blk == NULL) {
+      mxt_err(mxt->ctx, "Memory allocation failure");
+      return MXT_ERROR_NO_MEM;
+    }
 
-  /* Read the entire Information Block from the chip */
-  ret = mxt_read_register(mxt, info_blk, 0, info_block_size);
-  if (ret) {
-    mxt_err(mxt->ctx, "Failed to read Information Block");
-    return ret;
+    /* Read the entire Information Block from the chip */
+    ret = mxt_read_register(mxt, info_blk, 0, info_block_size);
+    if (ret) {
+      mxt_err(mxt->ctx, "Failed to read Information Block");
+      return ret;
+    }
   }
 
   /* Update pointers in device structure */
@@ -153,9 +159,11 @@ int mxt_read_info_block(struct mxt_device *mxt)
     return ret;
 
   /* A zero CRC indicates a communications error */
-  if (calc_crc == 0) {
-    mxt_err(mxt->ctx, "Info checksum zero - possible comms error or zero input");
-    return MXT_ERROR_IO;
+  if (mxt->conn->type != E_SIMULATE) {
+    if (calc_crc == 0) {
+      mxt_err(mxt->ctx, "Info checksum zero - possible comms error or zero input");
+      return MXT_ERROR_IO;
+    }
   }
 
   /* Compare the read checksum with calculated checksum */

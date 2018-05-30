@@ -207,6 +207,10 @@ int mxt_new_device(struct libmaxtouch_ctx *ctx, struct mxt_conn_info *conn,
     ret = hidraw_register(new_dev);
     break;
 
+  case E_SIMULATE:
+    ret = MXT_SUCCESS;
+    break;
+
   default:
     mxt_err(ctx, "Device type not supported");
     ret = MXT_ERROR_NOT_SUPPORTED;
@@ -268,6 +272,9 @@ void mxt_free_device(struct mxt_device *mxt)
 
   case E_HIDRAW:
     hidraw_release(mxt);
+    break;
+
+  case E_SIMULATE:
     break;
 
   default:
@@ -499,6 +506,10 @@ int mxt_reset_chip(struct mxt_device *mxt, bool bootloader_mode)
     ret = usb_reset_chip(mxt, bootloader_mode);
     break;
 #endif /* HAVE_LIBUSB */
+
+  case E_SIMULATE:
+    ret = MXT_SUCCESS;
+    break;
 
   default:
     mxt_err(mxt->ctx, "Device type not supported");
@@ -869,6 +880,29 @@ int mxt_bootloader_write(struct mxt_device *mxt, unsigned char const *buf, int c
 
   case E_I2C_DEV:
     ret = i2c_dev_bootloader_write_blks(mxt, buf, count);
+    break;
+
+  case E_SIMULATE:
+    mxt_dbg(mxt->ctx, "Sending buffer of size %d", count);
+    for (ret = 0; ret < count; ret+=8) {
+      if((count-ret) >= 8)
+          mxt_dbg(mxt->ctx, "\t0x%04hhx: %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx", ret, buf[ret], buf[ret+1], buf[ret+2], buf[ret+3], buf[ret+4], buf[ret+5], buf[ret+6], buf[ret+7]);
+      else if((count-ret) >= 7)
+          mxt_dbg(mxt->ctx, "\t0x%04hhx: %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx", ret, buf[ret], buf[ret+1], buf[ret+2], buf[ret+3], buf[ret+4], buf[ret+5], buf[ret+6]);
+      else if((count-ret) >= 6)
+          mxt_dbg(mxt->ctx, "\t0x%04hhx: %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx", ret, buf[ret], buf[ret+1], buf[ret+2], buf[ret+3], buf[ret+4], buf[ret+5]);
+      else if((count-ret) >= 5)
+          mxt_dbg(mxt->ctx, "\t0x%04hhx: %02hhx %02hhx %02hhx %02hhx %02hhx", ret, buf[ret], buf[ret+1], buf[ret+2], buf[ret+3], buf[ret+4]);
+      else if((count-ret) >= 4)
+          mxt_dbg(mxt->ctx, "\t0x%04hhx: %02hhx %02hhx %02hhx %02hhx", ret, buf[ret], buf[ret+1], buf[ret+2], buf[ret+3]);
+      else if((count-ret) >= 3)
+          mxt_dbg(mxt->ctx, "\t0x%04hhx: %02hhx %02hhx %02hhx", ret, buf[ret], buf[ret+1], buf[ret+2]);
+      else if((count-ret) >= 2)
+          mxt_dbg(mxt->ctx, "\t0x%04hhx: %02hhx %02hhx", ret, buf[ret], buf[ret+1]);
+      else
+          mxt_dbg(mxt->ctx, "\t0x%04hhx: %02hhx", ret, buf[ret]);
+    }
+    ret = MXT_SUCCESS;
     break;
 
   case E_HIDRAW:

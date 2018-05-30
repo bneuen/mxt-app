@@ -600,6 +600,10 @@ int main (int argc, char *argv[])
             conn = mxt_unref_conn(conn);
             return MXT_ERROR_NO_MEM;
           }
+        } else if (!strncmp(optarg, "simulate", 8)) {
+          ret = mxt_new_conn(&conn, E_SIMULATE);
+          if (ret)
+            return ret;
         } else {
           fprintf(stderr, "Invalid device string %s\n", optarg);
           conn = mxt_unref_conn(conn);
