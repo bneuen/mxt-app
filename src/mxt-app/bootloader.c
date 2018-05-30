@@ -160,6 +160,10 @@ static int mxt_check_bootloader(struct flash_context *fw, unsigned int state)
   unsigned char bootloader_version;
   int ret;
 
+  if (fw->conn->type == E_SIMULATE) {
+    return MXT_SUCCESS;
+  }
+
 recheck:
   if (state != MXT_WAITING_BOOTLOAD_CMD)
     wait_for_chg(fw->mxt);
@@ -523,7 +527,7 @@ static int mxt_enter_bootloader_mode(struct flash_context *fw)
   if (ret) {
     mxt_err(fw->ctx, "Reset failure - aborting");
     return ret;
-  } else {
+  } else if (fw->conn->type != E_SIMULATE) {
     sleep(MXT_RESET_TIME);
   }
 
@@ -627,6 +631,7 @@ int mxt_flash_firmware(struct libmaxtouch_ctx *ctx,
       fw.conn = new_conn;
     }
   }
+
 #ifdef HAVE_LIBUSB
   else if (fw.mxt->conn->type == E_USB) {
     bool bus_devices[USB_MAX_BUS_DEVICES] = { 0 };

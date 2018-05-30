@@ -122,6 +122,7 @@ enum mxt_device_type {
   E_USB,
 #endif
   E_I2C_DEV,
+  E_SIMULATE,
   E_HIDRAW,
 };
 
